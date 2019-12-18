@@ -7,7 +7,8 @@ from keras.optimizers import Adam
 
 
 MAX_PIX_VAL = 255.0
-NUM_CLASSES = 10
+CLASSES = np.array(['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck'])
+NUM_CLASSES = CLASSES.size
 
 
 def load_cifar10():
@@ -21,7 +22,7 @@ def load_cifar10():
 
     return (train_x, train_y), (test_x, test_y)
 
-def model(input_shape, num_classes, learning_rate):
+def nn_model(input_shape, num_classes, learning_rate):
     input_layer = Input(shape=input_shape)
     x = Flatten()(input_layer)
     x = Dense(units=200, activation='relu')(x)
@@ -36,6 +37,31 @@ def model(input_shape, num_classes, learning_rate):
     )
     return m
 
+def plot(model, test_x):
+    import matplotlib.pyplot as plt
+
+    NUM_SHOW = 10
+    indices = np.random.choice(range(len(test_x)), NUM_SHOW)
+
+    preds = model.predict(test_x)
+    predictions = CLASSES[np.argmax(preds, axis=-1)]
+    actuals = CLASSES[np.argmax(test_y, axis=-1)]
+
+    fig = plt.figure(figsize=(15, 3))
+    fig.subplots_adjust(hspace=0.4, wspace=0.4)
+
+    for i, idx in enumerate(indices):
+        img = test_x[idx]
+
+        ax = fig.add_subplot(1, NUM_SHOW, i + 1)
+        ax.axis('off')
+        ax.text(0., -0.3, f"actu={actuals[idx]}", fontsize=8, ha='left', transform=ax.transAxes)
+        ax.text(0., -0.6, f"pred={predictions[idx]}", fontsize=8, ha='left', transform=ax.transAxes)
+
+        ax.imshow(img)
+
+    plt.show()
+
 if __name__ == "__main__":
     import os.path
 
@@ -45,9 +71,11 @@ if __name__ == "__main__":
     if os.path.isfile(model_file):
         model = load_model(model_file)
     else:
-        model = model(input_shape=train_x.shape[1:], num_classes=train_y.shape[1], learning_rate=0.0005)
+        model = nn_model(input_shape=train_x.shape[1:], num_classes=train_y.shape[1], learning_rate=0.0005)
         model.summary()
         model.fit(train_x, train_y, batch_size=32, epochs=10, shuffle=True)
         model.save(model_file)
 
     model.evaluate(test_x, test_y)
+
+    plot(model, test_x)
