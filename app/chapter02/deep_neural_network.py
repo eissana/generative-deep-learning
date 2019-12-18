@@ -3,41 +3,54 @@ from keras.utils import to_categorical
 from keras.datasets import cifar10
 from keras.layers import Input, Flatten, Dense
 from keras.models import Model
+from keras.optimizers import Adam
 
+
+MAX_PIX_VAL = 255.0
+NUM_CLASSES = 10
+
+
+def load_cifar10():
+    (train_x, train_y), (test_x, test_y) = cifar10.load_data()
+
+    train_x = train_x.astype('float32') / MAX_PIX_VAL
+    test_x = test_x.astype('float32') / MAX_PIX_VAL
+
+    train_y = to_categorical(train_y, NUM_CLASSES)
+    test_y = to_categorical(test_y, NUM_CLASSES)
+
+    return (train_x, train_y), (test_x, test_y)
 
 class NeuralNetwork(object):
-    __NUMC_LASSES = 10
-    __MAX_PIX_VAL = 255.0
+    def __init__(self, input_shape, num_classes, learning_rate):
+        self.__input_shape = input_shape
+        self.__num_out_nodes = num_classes
+        self.__learning_rate = learning_rate
 
-    def load_data(self):
-        (train_x, train_y), (test_x, test_y) = cifar10.load_data()
+        self.__model = None
 
-        train_x = train_x.astype('float32') / self.__MAX_PIX_VAL
-        test_x = test_x.astype('float32') / self.__MAX_PIX_VAL
-
-        train_y = to_categorical(train_y, self.__NUMC_LASSES)
-        test_y = to_categorical(test_y, self.__NUMC_LASSES)
-
-        return (train_x, train_y), (test_x, test_y)
-
-    def build_model(self, input_shape, num_out_nodes):
-        input_layer = Input(shape=input_shape)
+    def build_model(self):
+        input_layer = Input(shape=self.__input_shape)
         x = Flatten()(input_layer)
         x = Dense(units=200, activation='relu')(x)
         x = Dense(units=150, activation='relu')(x)
-        output_layer = Dense(units=num_out_nodes, activation='softmax')(x)
+        output_layer = Dense(units=self.__num_out_nodes, activation='softmax')(x)
 
-        return Model(input_layer, output_layer)
-
+        self.__model = Model(input_layer, output_layer)
+        self.__model.compile(
+            loss='categorical_crossentropy', 
+            optimizer=Adam(lr=self.__learning_rate),
+            metrics=['accuracy'],
+        )
+        return self.__model
 
 if __name__ == "__main__":
-    net = NeuralNetwork()
-    (train_x, train_y), (test_x, test_y) = net.load_data()
-
+    (train_x, train_y), (test_x, test_y) = load_cifar10()
     print(train_x.shape)
     print(train_y.shape)
     print(test_x.shape)
     print(test_y.shape)
 
-    model = net.build_model(input_shape=train_x.shape[1:], num_out_nodes=train_y.shape[1])
+    net = NeuralNetwork(input_shape=train_x.shape[1:], num_classes=train_y.shape[1], learning_rate=0.01)
+    model = net.build_model()
     model.summary()
