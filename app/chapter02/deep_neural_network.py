@@ -25,8 +25,9 @@ def nn_model(input_shape, num_classes, learning_rate):
 
 if __name__ == "__main__":
     import os.path
+    from app.__init__ import MODELS_DIR
 
-    model_file = "models/nn.h5"
+    model_file = f"{MODELS_DIR}/nn.h5"
     (train_x, train_y), (test_x, test_y) = load_cifar10()
 
     if os.path.isfile(model_file):
