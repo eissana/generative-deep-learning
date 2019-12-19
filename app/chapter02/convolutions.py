@@ -1,28 +1,12 @@
-import numpy as np
-from keras.utils import to_categorical
-from keras.datasets import cifar10
 from keras.layers import Input, Flatten, Dense, Conv2D
 from keras.models import Model, load_model
 from keras.optimizers import Adam
 
-
-MAX_PIX_VAL = 255.0
-CLASSES = np.array(['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck'])
-NUM_CLASSES = CLASSES.size
+from app.data import load_cifar10
+from app.plot import plot_sample_images
 
 
-def load_cifar10():
-    (train_x, train_y), (test_x, test_y) = cifar10.load_data()
-
-    train_x = train_x.astype('float32') / MAX_PIX_VAL
-    test_x = test_x.astype('float32') / MAX_PIX_VAL
-
-    train_y = to_categorical(train_y, NUM_CLASSES)
-    test_y = to_categorical(test_y, NUM_CLASSES)
-
-    return (train_x, train_y), (test_x, test_y)
-
-def nn_model(input_shape, num_classes, learning_rate):
+def conv_model(input_shape, num_classes, learning_rate):
     input_layer = Input(shape=input_shape)
     x = Conv2D(filters=10, kernel_size=(4,4), strides=2, padding='same')(input_layer)
     x = Conv2D(filters=20, kernel_size=(3,3), strides=2, padding='same')(x)
@@ -37,50 +21,21 @@ def nn_model(input_shape, num_classes, learning_rate):
     )
     return m
 
-def plot(model, test_x):
-    import matplotlib.pyplot as plt
-
-    NUM_SHOW = 10
-    indices = np.random.choice(range(len(test_x)), NUM_SHOW)
-
-    preds = model.predict(test_x)
-    predictions = CLASSES[np.argmax(preds, axis=-1)]
-    actuals = CLASSES[np.argmax(test_y, axis=-1)]
-
-    fig = plt.figure(figsize=(15, 3))
-    fig.subplots_adjust(hspace=0.4, wspace=0.4)
-
-    for i, idx in enumerate(indices):
-        img = test_x[idx]
-
-        ax = fig.add_subplot(1, NUM_SHOW, i + 1)
-        ax.axis('off')
-        ax.text(0., -0.3, f"actu={actuals[idx]}", fontsize=8, ha='left', transform=ax.transAxes)
-        ax.text(0., -0.6, f"pred={predictions[idx]}", fontsize=8, ha='left', transform=ax.transAxes)
-
-        ax.imshow(img)
-
-    plt.show()
-
 if __name__ == "__main__":
     import os.path
 
-    model_file = "models/nn.h5"
+    model_file = "models/conv.h5"
     (train_x, train_y), (test_x, test_y) = load_cifar10()
-
-    # print(train_x.shape)
-    # print(train_y.shape)
-    # print(test_x.shape)
-    # print(test_y.shape)
 
     if os.path.isfile(model_file):
         model = load_model(model_file)
     else:
-        model = nn_model(input_shape=train_x.shape[1:], num_classes=train_y.shape[1], learning_rate=0.0005)
+        model = conv_model(input_shape=train_x.shape[1:], num_classes=train_y.shape[1], learning_rate=0.0005)
         model.summary()
         model.fit(train_x, train_y, batch_size=32, epochs=10, shuffle=True)
         model.save(model_file)
 
     model.evaluate(test_x, test_y)
+    predictions = model.predict(test_x)
 
-    plot(model, test_x)
+    plot_sample_images(test_x, test_y, predictions)
