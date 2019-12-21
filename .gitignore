@@ -5,3 +5,7 @@ models
 build
 dist
 *.egg-info
+
+app/models
+app/weights
+app/viz

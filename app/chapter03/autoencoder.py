@@ -1,4 +1,5 @@
 import numpy as np
+import pickle
 from os import path, makedirs
 
 from keras.layers import (
@@ -8,8 +9,10 @@ from keras.models import Model, load_model
 from keras import backend as K
 from keras.utils import plot_model
 from keras.optimizers import Adam
+from keras.callbacks import ModelCheckpoint 
 
 from app.data import load_mnist
+from app.__init__ import MODELS_DIR, WEIGHTS_DIR, VIZ_DIR
 
 
 class AutoencoderModel(object):
@@ -33,8 +36,8 @@ class AutoencoderModel(object):
         self.__use_batch_norm = use_batch_norm
         self.__use_dropout = use_dropout
 
-    def fit(self, x, *args):
-        return self.model().fit(x=x, y=x, *args)
+    def fit(self, x, **args):
+        return self.model().fit(x=x, y=x, **args)
 
     def model(self):
         if self.__model is None:
@@ -52,16 +55,9 @@ class AutoencoderModel(object):
         return self.__model
 
     def plot_model(self):
-        from app.__init__ import MODELS_PLOT_DIR
-
-        filepath = path.join(MODELS_PLOT_DIR, path.dirname(__file__))
-
-        if not path.exists(filepath):
-            makedirs(filepath)
-
-        plot_model(self.model(), to_file=path.join(filepath ,'model.png'), show_shapes = True, show_layer_names = True)
-        plot_model(self.encoder(), to_file=path.join(filepath ,'encoder.png'), show_shapes = True, show_layer_names = True)
-        plot_model(self.decoder(), to_file=path.join(filepath ,'decoder.png'), show_shapes = True, show_layer_names = True)
+        plot_model(self.model(), to_file=path.join(VIZ_DIR ,'model.png'), show_shapes = True, show_layer_names = True)
+        plot_model(self.encoder(), to_file=path.join(VIZ_DIR ,'encoder.png'), show_shapes = True, show_layer_names = True)
+        plot_model(self.decoder(), to_file=path.join(VIZ_DIR ,'decoder.png'), show_shapes = True, show_layer_names = True)
 
     def encoder(self):
         if self.__encoder is None:
@@ -106,7 +102,7 @@ class AutoencoderModel(object):
         x = self.__combine(Conv2DTranspose, x, filters=64, strides=1, name='decoder_conv_0')
         x = self.__combine(Conv2DTranspose, x, filters=64, strides=2, name='decoder_conv_1')
         x = self.__combine(Conv2DTranspose, x, filters=32, strides=2, name='decoder_conv_2')        
-        x = Conv2DTranspose(filters=64, kernel_size=3, strides=1, padding='same', name='encoder_conv_3')(x)
+        x = Conv2DTranspose(filters=1, kernel_size=3, strides=1, padding='same', name='encoder_conv_3')(x)
 
         self.__decoder_output_layer = Activation('sigmoid')(x)
 
@@ -120,7 +116,18 @@ class AutoencoderModel(object):
         return x
 
 
-    def reconstruct_images(self, num_show, test_x)
+    def save(self, file):
+        with open(file, 'wb') as f:
+            pickle.dump([
+                self.__input_shape,
+                self.__z_dim,
+                self.__use_batch_norm,
+                self.__use_dropout,
+                ], f)
+
+    def reconstruct_images(self, num_show, test_x):
+        import matplotlib.pyplot as plt
+
         example_idx = np.random.choice(range(len(test_x)), num_show)
         example_images = test_x[example_idx]
 
@@ -143,32 +150,40 @@ class AutoencoderModel(object):
             ax = fig.add_subplot(2, num_show, i+num_show+1)
             ax.axis('off')
             ax.imshow(img, cmap='gray_r')
+        plt.show()
 
 
 if __name__ == "__main__":
-    from app.__init__ import MODELS_DIR
+    import argparse
 
-    model_file = path.join(f"{MODELS_DIR}", f"{__file__.split('.')[0]}.h5")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--overwrite", default=False, action='store_true', help="overwrite model params and weights")
+    args = parser.parse_args()
 
-    if not path.exists(path.dirname(model_file)):
-        makedirs(path.dirname(model_file))
+    params_file = path.join(MODELS_DIR, 'ae_params.pkl')
+    weights_file = path.join(WEIGHTS_DIR, 'weights.h5')
 
     (train_x, train_y), (test_x, test_y) = load_mnist()
 
-    if path.isfile(model_file):
-        with open(model_file, 'rb') as f:
-            ae = pickle.load(f)
+    if path.isfile(params_file) and not args.overwrite:
+        with open(params_file, 'rb') as f:
+            params = pickle.load(f)
+            ae = AutoencoderModel(*params)
+
+            if not path.isfile(weights_file):
+                raise Exception("Missing weights of autoencoder")
+
+            ae.model().load_weights(weights_file)
     else:
         ae = AutoencoderModel(
             input_shape=train_x.shape[1:], 
             learning_rate=0.0005,
             use_batch_norm=False,
             use_dropout=False)
-        ae.fit(x=train_x[:1000], batch_size=32, epochs=2, shuffle=True)
-
-        with open(model_file, 'wb') as f:
-            pickle.dump(ae, f)
+        checkpoint = ModelCheckpoint(weights_file, save_weights_only = True, verbose=1)
+        ae.fit(x=train_x, batch_size=32, epochs=200, shuffle=True, callbacks=[checkpoint])
+        ae.save(params_file)
 
     ae.model().summary()
     ae.plot_model()
-    ae.reconst_images(num_show=10, test_x)
+    ae.reconstruct_images(num_show=10, test_x=test_x)
