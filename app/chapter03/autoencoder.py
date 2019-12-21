@@ -12,7 +12,7 @@ from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint 
 
 from app.data import load_mnist
-from app.__init__ import MODELS_DIR, WEIGHTS_DIR, VIZ_DIR
+from app.__init__ import MODELS_DIR, VIZ_DIR
 
 
 class AutoencoderModel(object):
@@ -116,14 +116,14 @@ class AutoencoderModel(object):
         return x
 
 
-    def save(self, file):
-        with open(file, 'wb') as f:
-            pickle.dump([
-                self.__input_shape,
-                self.__z_dim,
-                self.__use_batch_norm,
-                self.__use_dropout,
-                ], f)
+    # def save(self, file):
+    #     with open(file, 'wb') as f:
+    #         pickle.dump([
+    #             self.__input_shape,
+    #             self.__z_dim,
+    #             self.__use_batch_norm,
+    #             self.__use_dropout,
+    #             ], f)
 
     def reconstruct_images(self, num_show, test_x):
         import matplotlib.pyplot as plt
@@ -160,30 +160,23 @@ if __name__ == "__main__":
     parser.add_argument("--overwrite", default=False, action='store_true', help="overwrite model params and weights")
     args = parser.parse_args()
 
-    params_file = path.join(MODELS_DIR, 'ae_params.pkl')
-    weights_file = path.join(WEIGHTS_DIR, 'weights.h5')
+    model_file = path.join(MODELS_DIR, 'ae_model.h5')
 
     (train_x, train_y), (test_x, test_y) = load_mnist()
 
-    if path.isfile(params_file) and not args.overwrite:
-        with open(params_file, 'rb') as f:
-            params = pickle.load(f)
-            ae = AutoencoderModel(*params)
-
-            if not path.isfile(weights_file):
-                raise Exception("Missing weights of autoencoder")
-
-            ae.model().load_weights(weights_file)
+    if path.isfile(model_file) and not args.overwrite:
+        ae_model = load_model(model_file)
     else:
         ae = AutoencoderModel(
             input_shape=train_x.shape[1:], 
             learning_rate=0.0005,
             use_batch_norm=False,
             use_dropout=False)
-        checkpoint = ModelCheckpoint(weights_file, save_weights_only = True, verbose=1)
-        ae.fit(x=train_x, batch_size=32, epochs=200, shuffle=True, callbacks=[checkpoint])
-        ae.save(params_file)
+        ae_model = ae.model()
 
     ae.model().summary()
     ae.plot_model()
+
+    checkpoint = ModelCheckpoint(model_file, monitor='loss', save_best_only=True, verbose=1, mode='min')
+    ae.fit(x=train_x, batch_size=32, epochs=200, shuffle=True, callbacks=[checkpoint])
     ae.reconstruct_images(num_show=10, test_x=test_x)
