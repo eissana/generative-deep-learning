@@ -12,7 +12,7 @@ from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint 
 
 from app.data import load_mnist
-from app.__init__ import MODELS_DIR, VIZ_DIR
+from app.__init__ import MODELS_DIR, VIZ_DIR, PARAMS_DIR
 
 
 class AutoencoderModel(object):
@@ -157,11 +157,21 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--overwrite", default=False, action='store_true', help="overwrite model params and weights")
-    parser.add_argument("--train", default=True, action='store_true', help="continue training process")
+
+    overwrite_parser = parser.add_mutually_exclusive_group(required=False)
+    overwrite_parser.add_argument('--overwrite', dest='overwrite', action='store_true', help="overwrite model and parameters")
+    overwrite_parser.add_argument('--no-overwrite', dest='overwrite', action='store_false', help="load model from file if exists")
+    parser.set_defaults(overwrite=False)
+
+    train_parser = parser.add_mutually_exclusive_group(required=False)
+    train_parser.add_argument("--train", dest='train', action='store_true', help="continue training model")
+    train_parser.add_argument("--no-train", dest='train', action='store_false', help="don't continue training")
+    parser.set_defaults(train=True)
+
     args = parser.parse_args()
 
     model_file = path.join(MODELS_DIR, 'ae_model.h5')
+    params_file = path.join(PARAMS_DIR, 'ae_params.pkl')
 
     (train_x, train_y), (test_x, test_y) = load_mnist()
 
@@ -173,6 +183,10 @@ if __name__ == "__main__":
             learning_rate=0.0005,
             use_batch_norm=False,
             use_dropout=False)
+
+        with open(params_file, 'wb') as f:
+            pickle.dump(ae, f)
+
         ae_model = ae.model()
         ae.plot_model()
 
@@ -181,8 +195,6 @@ if __name__ == "__main__":
     if args.train:
         checkpoint = ModelCheckpoint(model_file, monitor='loss', save_best_only=True, verbose=1, mode='min')
         ae_model.fit(x=train_x, y=train_x, batch_size=32, epochs=200, shuffle=True, callbacks=[checkpoint])
-
-    params_file = path.join(PARAMS_DIR, 'ae_params.pkl')
 
     if path.isfile(params_file):
         with open(params_file, 'rb') as f:
