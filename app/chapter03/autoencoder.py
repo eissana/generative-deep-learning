@@ -48,7 +48,6 @@ class AutoencoderModel(object):
             output_layer = self.decoder()(self.__encoder_output_layer)
 
             self.__model = Model(input_layer, output_layer)
-
             self.__model.compile(optimizer=Adam(lr=self.__learning_rate), loss=loss_func)
         return self.__model
 
@@ -114,14 +113,14 @@ class AutoencoderModel(object):
         return x
 
 
-    # def save(self, file):
-    #     with open(file, 'wb') as f:
-    #         pickle.dump([
-    #             self.__input_shape,
-    #             self.__z_dim,
-    #             self.__use_batch_norm,
-    #             self.__use_dropout,
-    #             ], f)
+    def save(self, file):
+        with open(file, 'wb') as f:
+            pickle.dump([
+                self.__input_shape,
+                self.__z_dim,
+                self.__use_batch_norm,
+                self.__use_dropout,
+                ], f)
 
     def reconstruct_images(self, num_show, test_x):
         import matplotlib.pyplot as plt
@@ -130,7 +129,6 @@ class AutoencoderModel(object):
         example_images = test_x[example_idx]
 
         z_points = self.encoder().predict(example_images)
-
         reconst_images = self.decoder().predict(z_points)
 
         fig = plt.figure(figsize=(15, 3))
@@ -160,6 +158,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--overwrite", default=False, action='store_true', help="overwrite model params and weights")
+    parser.add_argument("--train", default=True, action='store_true', help="continue training process")
     args = parser.parse_args()
 
     model_file = path.join(MODELS_DIR, 'ae_model.h5')
@@ -175,10 +174,18 @@ if __name__ == "__main__":
             use_batch_norm=False,
             use_dropout=False)
         ae_model = ae.model()
+        ae.plot_model()
 
-    ae.model().summary()
-    ae.plot_model()
+    ae_model.summary()
 
-    checkpoint = ModelCheckpoint(model_file, monitor='loss', save_best_only=True, verbose=1, mode='min')
-    ae.fit(x=train_x, batch_size=32, epochs=200, shuffle=True, callbacks=[checkpoint])
+    if args.train:
+        checkpoint = ModelCheckpoint(model_file, monitor='loss', save_best_only=True, verbose=1, mode='min')
+        ae_model.fit(x=train_x, y=train_x, batch_size=32, epochs=200, shuffle=True, callbacks=[checkpoint])
+
+    params_file = path.join(PARAMS_DIR, 'ae_params.pkl')
+
+    if path.isfile(params_file):
+        with open(params_file, 'rb') as f:
+            ae = pickle.load(f)
+
     ae.reconstruct_images(num_show=10, test_x=test_x)

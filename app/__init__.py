@@ -14,3 +14,8 @@ VIZ_DIR = path.join(f"{root_path()}", "viz")
 
 if not path.exists(VIZ_DIR):
     mkdir(VIZ_DIR)
+
+PARAMS_DIR = path.join(f"{root_path()}", "params")
+
+if not path.exists(PARAMS_DIR):
+    mkdir(PARAMS_DIR)
