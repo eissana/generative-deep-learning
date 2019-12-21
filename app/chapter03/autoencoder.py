@@ -48,10 +48,8 @@ class AutoencoderModel(object):
             output_layer = self.decoder()(self.__encoder_output_layer)
 
             self.__model = Model(input_layer, output_layer)
-            self.__model.compile(
-                loss=lambda x, y: K.mean(K.square(x - y), axis = [1,2,3]), 
-                optimizer=Adam(lr=self.__learning_rate),
-            )
+
+            self.__model.compile(optimizer=Adam(lr=self.__learning_rate), loss=loss_func)
         return self.__model
 
     def plot_model(self):
@@ -153,6 +151,10 @@ class AutoencoderModel(object):
         plt.show()
 
 
+def loss_func(x, y):
+    return K.mean(K.square(x - y), axis = [1,2,3])
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -165,7 +167,7 @@ if __name__ == "__main__":
     (train_x, train_y), (test_x, test_y) = load_mnist()
 
     if path.isfile(model_file) and not args.overwrite:
-        ae_model = load_model(model_file)
+        ae_model = load_model(model_file, custom_objects={'loss_func': loss_func})
     else:
         ae = AutoencoderModel(
             input_shape=train_x.shape[1:], 
