@@ -12,7 +12,6 @@ from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint 
 
 from app.data import load_mnist
-from app.__init__ import MODELS_DIR, VIZ_DIR, PARAMS_DIR
 
 
 class AutoencoderModel(object):
@@ -36,8 +35,9 @@ class AutoencoderModel(object):
         self.__use_batch_norm = use_batch_norm
         self.__use_dropout = use_dropout
 
-    def fit(self, x, **args):
-        return self.model().fit(x=x, y=x, **args)
+    def fit(self, x, epochs, batch_size, shuffle, weights_file):
+        checkpoint = ModelCheckpoint(weights_file, save_weights_only=True, verbose=1)
+        return ae.model().fit(x=x, y=x, epochs=epochs, batch_size=batch_size, shuffle=shuffle, callbacks=[checkpoint])
 
     def model(self):
         if self.__model is None:
@@ -50,11 +50,6 @@ class AutoencoderModel(object):
             self.__model = Model(input_layer, output_layer)
             self.__model.compile(optimizer=Adam(lr=self.__learning_rate), loss=loss_func)
         return self.__model
-
-    def plot_model(self):
-        plot_model(self.model(), to_file=path.join(VIZ_DIR ,'model.png'), show_shapes = True, show_layer_names = True)
-        plot_model(self.encoder(), to_file=path.join(VIZ_DIR ,'encoder.png'), show_shapes = True, show_layer_names = True)
-        plot_model(self.decoder(), to_file=path.join(VIZ_DIR ,'decoder.png'), show_shapes = True, show_layer_names = True)
 
     def encoder(self):
         if self.__encoder is None:
@@ -114,13 +109,17 @@ class AutoencoderModel(object):
 
 
     def save(self, file):
+        _ = self.model() # make sure model in built
         with open(file, 'wb') as f:
             pickle.dump([
                 self.__input_shape,
-                self.__z_dim,
+                self.__learning_rate,
                 self.__use_batch_norm,
                 self.__use_dropout,
                 ], f)
+
+    def load_weights(self, filepath):
+        self.model().load_weights(filepath)
 
     def reconstruct_images(self, num_show, test_x):
         import matplotlib.pyplot as plt
@@ -155,6 +154,7 @@ def loss_func(x, y):
 
 if __name__ == "__main__":
     import argparse
+    from app.__init__ import PARAMS_DIR, WEIGHTS_DIR
 
     parser = argparse.ArgumentParser()
 
@@ -170,13 +170,16 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    model_file = path.join(MODELS_DIR, 'ae_model.h5')
     params_file = path.join(PARAMS_DIR, 'ae_params.pkl')
+    weights_file = path.join(WEIGHTS_DIR, 'weights.h5')
 
     (train_x, train_y), (test_x, test_y) = load_mnist()
 
-    if path.isfile(model_file) and not args.overwrite:
-        ae_model = load_model(model_file, custom_objects={'loss_func': loss_func})
+    if path.isfile(params_file) and path.isfile(weights_file) and not args.overwrite:
+        with open(params_file, 'rb') as f:
+            params = pickle.load(f)
+        ae = AutoencoderModel(*params)
+        ae.load_weights(weights_file)
     else:
         ae = AutoencoderModel(
             input_shape=train_x.shape[1:], 
@@ -184,20 +187,11 @@ if __name__ == "__main__":
             use_batch_norm=False,
             use_dropout=False)
 
-        with open(params_file, 'wb') as f:
-            pickle.dump(ae, f)
+        ae.save(params_file)
 
-        ae_model = ae.model()
-        ae.plot_model()
-
-    ae_model.summary()
+    ae.model().summary()
 
     if args.train:
-        checkpoint = ModelCheckpoint(model_file, monitor='loss', save_best_only=True, verbose=1, mode='min')
-        ae_model.fit(x=train_x, y=train_x, batch_size=32, epochs=200, shuffle=True, callbacks=[checkpoint])
-
-    if path.isfile(params_file):
-        with open(params_file, 'rb') as f:
-            ae = pickle.load(f)
+        ae.fit(x=train_x, epochs=200, batch_size=32, shuffle=True, weights_file=weights_file)
 
     ae.reconstruct_images(num_show=10, test_x=test_x)
