@@ -1,6 +1,7 @@
 import numpy as np
 import pickle
 from os import path, makedirs
+import matplotlib.pyplot as plt
 
 from keras.layers import (
     Input, Conv2D, Conv2DTranspose, LeakyReLU, Flatten, Dense, Dropout, 
@@ -122,8 +123,6 @@ class AutoencoderModel(object):
         self.model().load_weights(filepath)
 
     def reconstruct_images(self, num_show, test_x):
-        import matplotlib.pyplot as plt
-
         example_idx = np.random.choice(range(len(test_x)), num_show)
         example_images = test_x[example_idx]
 
@@ -145,8 +144,17 @@ class AutoencoderModel(object):
             ax = fig.add_subplot(2, num_show, i+num_show+1)
             ax.axis('off')
             ax.imshow(img, cmap='gray_r')
-        plt.show()
 
+    def latent_space(self, num_show, test_x, test_y):
+        example_idx = np.random.choice(range(len(test_x)), num_show)
+        example_images = test_x[example_idx]
+        example_labels = test_y[example_idx]
+
+        z_points = self.encoder().predict(example_images)
+
+        plt.figure(figsize=(7, 7))
+        plt.scatter(z_points[:, 0] , z_points[:, 1], cmap='rainbow', c=example_labels, alpha=0.5, s=2)
+        plt.colorbar()
 
 def loss_func(x, y):
     return K.mean(K.square(x - y), axis = [1,2,3])
@@ -195,3 +203,6 @@ if __name__ == "__main__":
         ae.fit(x=train_x, epochs=200, batch_size=32, shuffle=True, weights_file=weights_file)
 
     ae.reconstruct_images(num_show=10, test_x=test_x)
+    ae.latent_space(num_show=5000, test_x=test_x, test_y=test_y)
+    plt.show()
+
