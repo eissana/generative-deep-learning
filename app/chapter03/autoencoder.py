@@ -186,7 +186,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     params_file = path.join(PARAMS_DIR, 'ae_params.pkl')
-    weights_file = path.join(WEIGHTS_DIR, 'weights.h5')
+    weights_file = path.join(WEIGHTS_DIR, 'ae_weights.h5')
 
     (train_x, train_y), (test_x, test_y) = load_mnist()
 
