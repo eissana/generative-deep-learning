@@ -210,8 +210,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    params_file = path.join(PARAMS_DIR, 'vae_params.pkl')
-    weights_file = path.join(WEIGHTS_DIR, 'vae_weights.h5')
+    filename = path.basename(__file__)[:-3]
+    params_file = path.join(PARAMS_DIR, f'{filename}_params.pkl')
+    weights_file = path.join(WEIGHTS_DIR, f'{filename}_weights.h5')
 
     (train_x, train_y), (test_x, test_y) = load_mnist()
 
