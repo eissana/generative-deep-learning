@@ -1,4 +1,11 @@
 import numpy as np
+import pandas as pd
+from glob import glob
+from os import path
+
+from keras.preprocessing.image import ImageDataGenerator
+
+from app.__init__ import DATA_DIR
 
 
 MAX_PIX_VAL = 255.0
@@ -33,3 +40,30 @@ def load_mnist():
 
     return (train_x, train_y), (test_x, test_y)
 
+
+def load_celeb(target_size, batch_size, shuffle):
+    image_dir = path.join(DATA_DIR, 'celeb')
+    filenames = np.array(glob(path.join(image_dir, '*/*.jpg')))
+
+    data_gen = ImageDataGenerator(rescale=1./255.)
+    data_flow = data_gen.flow_from_directory(directory=image_dir, 
+                                             target_size=target_size, batch_size=batch_size, shuffle=shuffle, 
+                                             class_mode='input', subset='training')
+    num_images = len(filenames)
+    return data_flow, num_images
+
+
+def load_celeb_attr(target_size, batch_size, shuffle):
+    index_col = 'image_id'
+    attr_file = path.join(DATA_DIR, 'celeb', 'list_attr_celeba.csv')
+
+    dataframe = pd.read_csv(attr_file, skiprows=[0], delim_whitespace=True)
+    dataframe[index_col] = dataframe.index
+
+    image_dir = path.join(DATA_DIR, 'celeb', 'img_align_celeba')
+
+    data_gen = ImageDataGenerator(rescale=1./255.)
+    data_flow = data_gen.flow_from_dataframe(dataframe=dataframe, directory=image_dir, x_col=index_col,
+                                             target_size=target_size, batch_size=batch_size, shuffle=shuffle, 
+                                             class_mode='input')
+    return data_flow

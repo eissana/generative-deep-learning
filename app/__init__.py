@@ -19,3 +19,8 @@ PARAMS_DIR = path.join(f"{root_path()}", "params")
 
 if not path.exists(PARAMS_DIR):
     mkdir(PARAMS_DIR)
+
+DATA_DIR = path.join(f"{root_path()}", "data")
+
+if not path.exists(DATA_DIR):
+    mkdir(DATA_DIR)
