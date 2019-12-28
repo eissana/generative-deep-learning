@@ -122,38 +122,45 @@ class AutoencoderModel(object):
     def load_weights(self, filepath):
         self.model().load_weights(filepath)
 
-    def reconstruct_images(self, num_show, test_x):
-        example_idx = np.random.choice(range(len(test_x)), num_show)
-        example_images = test_x[example_idx]
-
-        z_points = self.encoder().predict(example_images)
-        reconst_images = self.decoder().predict(z_points)
+    def reconstruct_images(self, data):
+        data_size = len(data)
+        z_points = self.encoder().predict(data)
 
         fig = plt.figure(figsize=(15, 3))
         fig.subplots_adjust(hspace=0.4, wspace=0.4)
 
-        for i in range(num_show):
-            img = example_images[i].squeeze()
-            ax = fig.add_subplot(2, num_show, i+1)
+        num_rows = 2
+        offset = 0
+
+        for i in range(data_size):
+            offset += 1
+            img = data[i].squeeze()
+            ax = fig.add_subplot(num_rows, data_size, offset)
             ax.axis('off')
-            ax.text(0.5, -0.35, str(np.round(z_points[i],1)), fontsize=10, ha='center', transform=ax.transAxes)   
             ax.imshow(img, cmap='gray_r')
 
-        for i in range(num_show):
+        self.decoded_images(z_points, fig, num_rows, data_size)
+
+    def decoded_images(self, z_points, fig=None, num_rows=1, offset=0):
+        if fig is None:
+            fig = plt.figure(figsize=(15, 3))
+
+        reconst_images = self.decoder().predict(z_points)
+        data_size = len(reconst_images)
+
+        for i in range(data_size):
+            offset += 1
             img = reconst_images[i].squeeze()
-            ax = fig.add_subplot(2, num_show, i+num_show+1)
+            ax = fig.add_subplot(num_rows, data_size, offset)
             ax.axis('off')
+            ax.text(0.5, 1.2, str(np.round(z_points[i],1)), fontsize=10, ha='center', transform=ax.transAxes)   
             ax.imshow(img, cmap='gray_r')
 
-    def latent_space(self, num_show, test_x, test_y):
-        example_idx = np.random.choice(range(len(test_x)), num_show)
-        example_images = test_x[example_idx]
-        example_labels = test_y[example_idx]
-
-        z_points = self.encoder().predict(example_images)
+    def latent_space(self, test_x, test_y):
+        z_points = self.encoder().predict(test_x)
 
         plt.figure(figsize=(7, 7))
-        plt.scatter(z_points[:, 0] , z_points[:, 1], cmap='rainbow', c=example_labels, alpha=0.5, s=2)
+        plt.scatter(z_points[:, 0] , z_points[:, 1], cmap='rainbow', c=test_y, alpha=0.5, s=2)
         plt.colorbar()
 
 def loss_func(x, y):
@@ -202,7 +209,17 @@ if __name__ == "__main__":
     if args.train:
         ae.fit(x=train_x, epochs=200, batch_size=32, shuffle=True, weights_file=weights_file)
 
-    ae.reconstruct_images(num_show=10, test_x=test_x)
-    ae.latent_space(num_show=5000, test_x=test_x, test_y=test_y)
+    # reconstruct 10 random images from test data
+    example_idx = np.random.choice(range(len(test_x)), 10)
+    ae.reconstruct_images(data=test_x[example_idx])
+
+    # show latent space for randomly selected 5000 points on test data
+    example_idx = np.random.choice(range(len(test_x)), 5000)
+    ae.latent_space(test_x=test_x[example_idx], test_y=test_y[example_idx])
+
+    # randomly generate numbers in a reasonable range in the latent space, and construct their corresponding images
+    rand_z_points = np.random.uniform(low=[-20, -10], high=[15, 10], size=(10, 2))
+    ae.decoded_images(rand_z_points)
+
     plt.show()
 
