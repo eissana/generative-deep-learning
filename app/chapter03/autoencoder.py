@@ -48,6 +48,9 @@ class AutoencoderModel(object):
             input_layer = self.__encoder_input_layer
             output_layer = self.decoder()(self.__encoder_output_layer)
 
+            def loss_func(x, y):
+                return K.mean(K.square(x - y), axis = [1,2,3])
+
             self.__model = Model(input_layer, output_layer)
             self.__model.compile(optimizer=Adam(lr=self.__learning_rate), loss=loss_func)
         return self.__model
@@ -162,9 +165,6 @@ class AutoencoderModel(object):
         plt.figure(figsize=(7, 7))
         plt.scatter(z_points[:, 0] , z_points[:, 1], cmap='rainbow', c=test_y, alpha=0.5, s=2)
         plt.colorbar()
-
-def loss_func(x, y):
-    return K.mean(K.square(x - y), axis = [1,2,3])
 
 
 if __name__ == "__main__":
