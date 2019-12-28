@@ -10,3 +10,4 @@ app/models
 app/weights
 app/viz
 app/params
+app/data
