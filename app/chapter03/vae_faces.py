@@ -2,6 +2,7 @@ import numpy as np
 import pickle
 from os import path, makedirs
 import matplotlib.pyplot as plt
+from scipy.stats import norm
 
 from keras.layers import (
     Input, Conv2D, Conv2DTranspose, LeakyReLU, Flatten, Dense, Dropout, 
@@ -186,12 +187,19 @@ class VarAutoencoderModel(object):
             # ax.text(0.5, 1.2, str(np.round(z_points[i],1)), fontsize=10, ha='center', transform=ax.transAxes)   
             ax.imshow(img, cmap='gray_r')
 
-    def latent_space(self, test_x, test_y):
-        z_points = self.encoder().predict(test_x)
+    def latent_space(self, images_flow):
+        x = np.linspace(-3, 3, 100)
+        z_points = self.encoder().predict_generator(images_flow, steps=20, verbose=1)
 
-        plt.figure(figsize=(7, 7))
-        plt.scatter(z_points[:, 0] , z_points[:, 1], cmap='rainbow', c=test_y, alpha=0.5, s=2)
-        plt.colorbar()
+        fig = plt.figure(figsize=(7, 7))
+        fig.subplots_adjust(hspace=0.6, wspace=0.4)
+
+        for i in range(50):
+            ax = fig.add_subplot(5, 10, i+1)
+            ax.hist(z_points[:, i], density=True, bins=20)
+            ax.axis('off')
+            ax.text(0.5, -0.35, str(i+1), fontsize=10, ha='center', transform=ax.transAxes)
+            ax.plot(x, norm.pdf(x))
 
 
 if __name__ == "__main__":
@@ -252,6 +260,8 @@ if __name__ == "__main__":
     images_flow = load_celeb_attr(target_size=target_size, batch_size=num_show, shuffle=shuffle)
     example_images = next(images_flow)
     ae.reconstruct_images(data=example_images[0])
+
+    ae.latent_space(images_flow)
 
     plt.show()
 
