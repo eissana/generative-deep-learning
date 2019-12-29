@@ -88,6 +88,9 @@ class VarAutoencoderModel(object):
             self.__decoder = Model(self.__decoder_input_layer, self.__decoder_output_layer)
         return self.__decoder
 
+    def get_z_dim(self):
+        return self.__z_dim
+
     def __encoder_layers(self):
         self.__encoder_input_layer = Input(shape=self.__input_shape, name='encoder_input')
 
@@ -262,6 +265,10 @@ if __name__ == "__main__":
     vae.reconstruct_images(data=example_images[0])
 
     vae.latent_space(images_flow)
+
+    # randomly generate numbers in a reasonable range in the latent space, and construct their corresponding images
+    rand_z_points = np.random.normal(size=(num_show, vae.get_z_dim()))
+    vae.decoded_images(rand_z_points)
 
     plt.show()
 
