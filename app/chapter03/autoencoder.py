@@ -38,7 +38,7 @@ class AutoencoderModel(object):
 
     def fit(self, x, epochs, batch_size, shuffle, weights_file):
         checkpoint = ModelCheckpoint(weights_file, save_weights_only=True, verbose=1)
-        return ae.model().fit(x=x, y=x, epochs=epochs, batch_size=batch_size, shuffle=shuffle, callbacks=[checkpoint])
+        return self.model().fit(x=x, y=x, epochs=epochs, batch_size=batch_size, shuffle=shuffle, callbacks=[checkpoint])
 
     def model(self):
         if self.__model is None:

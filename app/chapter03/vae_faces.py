@@ -44,7 +44,7 @@ class VarAutoencoderModel(object):
 
     def fit(self, data_flow, epochs, shuffle, weights_file, steps_per_epoch):
         checkpoint = ModelCheckpoint(weights_file, save_weights_only=True, verbose=1)
-        return ae.model().fit_generator(generator=data_flow, epochs=epochs, steps_per_epoch=steps_per_epoch, 
+        return self.model().fit_generator(generator=data_flow, epochs=epochs, steps_per_epoch=steps_per_epoch, 
                                         shuffle=shuffle, callbacks=[checkpoint])
 
     def model(self):
@@ -235,10 +235,10 @@ if __name__ == "__main__":
     if path.isfile(params_file) and path.isfile(weights_file) and not args.overwrite:
         with open(params_file, 'rb') as f:
             params = pickle.load(f)
-        ae = VarAutoencoderModel(*params)
-        ae.load_weights(weights_file)
+        vae = VarAutoencoderModel(*params)
+        vae.load_weights(weights_file)
     else:
-        ae = VarAutoencoderModel(
+        vae = VarAutoencoderModel(
             input_shape=input_shape, 
             learning_rate=0.0005,
             use_batch_norm=True,
@@ -247,21 +247,21 @@ if __name__ == "__main__":
             z_dim=200,
             )
 
-        ae.save(params_file)
+        vae.save(params_file)
 
-    ae.model().summary()
+    vae.model().summary()
 
     if args.train:
         steps_per_epoch = num_images / batch_size
-        ae.fit(data_flow=data_flow, epochs=200, shuffle=True, weights_file=weights_file, steps_per_epoch=steps_per_epoch)
+        vae.fit(data_flow=data_flow, epochs=200, shuffle=True, weights_file=weights_file, steps_per_epoch=steps_per_epoch)
 
     # reconstruct 10 images
     num_show = 10
     images_flow = load_celeb_attr(target_size=target_size, batch_size=num_show, shuffle=shuffle)
     example_images = next(images_flow)
-    ae.reconstruct_images(data=example_images[0])
+    vae.reconstruct_images(data=example_images[0])
 
-    ae.latent_space(images_flow)
+    vae.latent_space(images_flow)
 
     plt.show()
 

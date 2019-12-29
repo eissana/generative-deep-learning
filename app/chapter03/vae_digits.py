@@ -43,7 +43,7 @@ class VarAutoencoderModel(object):
 
     def fit(self, x, epochs, batch_size, shuffle, weights_file):
         checkpoint = ModelCheckpoint(weights_file, save_weights_only=True, verbose=1)
-        return ae.model().fit(x=x, y=x, epochs=epochs, batch_size=batch_size, shuffle=shuffle, callbacks=[checkpoint])
+        return self.model().fit(x=x, y=x, epochs=epochs, batch_size=batch_size, shuffle=shuffle, callbacks=[checkpoint])
 
     def model(self):
         if self.__model is None:
@@ -219,34 +219,34 @@ if __name__ == "__main__":
     if path.isfile(params_file) and path.isfile(weights_file) and not args.overwrite:
         with open(params_file, 'rb') as f:
             params = pickle.load(f)
-        ae = VarAutoencoderModel(*params)
-        ae.load_weights(weights_file)
+        vae = VarAutoencoderModel(*params)
+        vae.load_weights(weights_file)
     else:
-        ae = VarAutoencoderModel(
+        vae = VarAutoencoderModel(
             input_shape=train_x.shape[1:], 
             learning_rate=0.0005,
             use_batch_norm=False,
             use_dropout=False,
             r_loss_factor=1000)
 
-        ae.save(params_file)
+        vae.save(params_file)
 
-    ae.model().summary()
+    vae.model().summary()
 
     if args.train:
-        ae.fit(x=train_x, epochs=200, batch_size=32, shuffle=True, weights_file=weights_file)
+        vae.fit(x=train_x, epochs=200, batch_size=32, shuffle=True, weights_file=weights_file)
 
     # reconstruct 10 random images from test data
     example_idx = np.random.choice(range(len(test_x)), 10)
-    ae.reconstruct_images(data=test_x[example_idx])
+    vae.reconstruct_images(data=test_x[example_idx])
 
     # show latent space for randomly selected 5000 points on test data
     example_idx = np.random.choice(range(len(test_x)), 5000)
-    ae.latent_space(test_x=test_x[example_idx], test_y=test_y[example_idx])
+    vae.latent_space(test_x=test_x[example_idx], test_y=test_y[example_idx])
 
     # randomly generate numbers in a reasonable range in the latent space, and construct their corresponding images
     rand_z_points = np.random.uniform(low=[-20, -10], high=[15, 10], size=(10, 2))
-    ae.decoded_images(rand_z_points)
+    vae.decoded_images(rand_z_points)
 
     plt.show()
 
