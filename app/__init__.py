@@ -31,3 +31,8 @@ DATA_DIR = path.join(f"{root_path()}", "data")
 
 if not path.exists(DATA_DIR):
     mkdir(DATA_DIR)
+
+VECTORS_DIR = path.join(f"{root_path()}", "vectors")
+
+if not path.exists(VECTORS_DIR):
+    mkdir(VECTORS_DIR)

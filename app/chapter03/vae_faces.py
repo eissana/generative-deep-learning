@@ -207,7 +207,7 @@ class VarAutoencoderModel(object):
             ax.text(0.5, -0.35, str(i+1), fontsize=10, ha='center', transform=ax.transAxes)
             ax.plot(x, norm.pdf(x))
 
-    def get_vector_from_label(self, target_size, batch_size, shuffle, label):
+    def get_vector_from_label(self, data_flow_label):
         class Current(object):
             _sum = np.zeros(shape=self.get_z_dim(), dtype='float32')
             _len = 0
@@ -218,10 +218,6 @@ class VarAutoencoderModel(object):
 
         current_vector = np.zeros(shape=self.get_z_dim(), dtype='float32')
         current_dist = 0
-
-        log.info(f'label: {label}')
-
-        data_flow_label = load_celeb_attr(target_size=target_size, batch_size=batch_size, shuffle=shuffle, label=label)
 
         while(current_pos._len < 10000):
             batch = next(data_flow_label)
@@ -267,10 +263,33 @@ class VarAutoencoderModel(object):
 
         return current_vector   
 
+    def add_vector_to_images(self, images, feature_vec):
+        z_points = self.encoder().predict(images)
+        fig = plt.figure(figsize=(18, 10))
+        counter = 1
+        factors = range(-4, 5)
+
+        for image in images:
+            img = image.squeeze()
+            sub = fig.add_subplot(len(images), len(factors) + 1, counter)
+            sub.axis('off')
+            sub.imshow(img)
+            counter += 1
+
+            for factor in factors:
+                changed_z_point = z_points[i] + feature_vec * factor
+                changed_image = self.decoder().predict(np.array([changed_z_point]))
+
+                img = changed_image[0].squeeze()
+                sub = fig.add_subplot(len(images), len(factors) + 1, counter)
+                sub.axis('off')
+                sub.imshow(img)
+                counter += 1
+
 
 if __name__ == "__main__":
     import argparse
-    from app import PARAMS_DIR, WEIGHTS_DIR
+    from app import PARAMS_DIR, WEIGHTS_DIR, VECTORS_DIR
 
     parser = argparse.ArgumentParser()
 
@@ -326,14 +345,25 @@ if __name__ == "__main__":
     example_images = next(images_flow)
     vae.reconstruct_images(data=example_images[0])
 
+    # plot latent space distributions
     vae.latent_space(images_flow)
 
     # randomly generate numbers in a reasonable range in the latent space, and construct their corresponding images
     rand_z_points = np.random.normal(size=(num_show, vae.get_z_dim()))
     vae.decoded_images(rand_z_points)
 
-    attractive_vec = vae.get_vector_from_label(target_size=target_size, batch_size=500, shuffle=shuffle, 
-                                               label='Attractive')
+    # add vectors (smiling, eyeglasse, attractive, ...) to images
+    vectors_file = path.join(WEIGHTS_DIR, f'{filename}_vectors.pkl')
+    if path.isfile(vectors_file) and not args.overwrite:
+        with open(vectors_file, 'rb') as f:
+            vectors = pickle.load(f)
+    else:
+        vectors = {}
+        for label in ['Attractive', 'Mouth_Slightly_Open', 'Smiling', 'Wearing_Lipstick', 'High_Cheekbones', 'Male', 'Eyeglasses', 'Blond_Hair']:  
+            data_flow_label = load_celeb_attr(target_size=target_size, batch_size=500, shuffle=shuffle, label=label)
+            vectors[label] = vae.get_vector_from_label(data_flow_label=data_flow_label)
+        with open(vectors_file, 'wb') as f:
+            pickle.dump(vectors, f)
 
     plt.show()
 
