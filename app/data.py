@@ -5,7 +5,7 @@ from os import path
 
 from keras.preprocessing.image import ImageDataGenerator
 
-from app.__init__ import DATA_DIR
+from app import DATA_DIR
 
 
 MAX_PIX_VAL = 255.0

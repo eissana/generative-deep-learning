@@ -36,7 +36,7 @@ def __combine(layer, filters, strides):
 
 if __name__ == "__main__":
     import os.path
-    from app.__init__ import MODELS_DIR
+    from app import MODELS_DIR
 
     model_file = f"{MODELS_DIR}/conv_batch.h5"
     (train_x, train_y), (test_x, test_y) = load_cifar10()

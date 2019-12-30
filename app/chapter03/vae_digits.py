@@ -194,7 +194,7 @@ class VarAutoencoderModel(object):
 
 if __name__ == "__main__":
     import argparse
-    from app.__init__ import PARAMS_DIR, WEIGHTS_DIR
+    from app import PARAMS_DIR, WEIGHTS_DIR
 
     parser = argparse.ArgumentParser()
 
