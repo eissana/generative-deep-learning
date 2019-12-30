@@ -269,7 +269,7 @@ class VarAutoencoderModel(object):
         counter = 1
         factors = range(-4, 5)
 
-        for image in images:
+        for i, image in enumerate(images):
             img = image.squeeze()
             sub = fig.add_subplot(len(images), len(factors) + 1, counter)
             sub.axis('off')
@@ -342,8 +342,9 @@ if __name__ == "__main__":
     # reconstruct 10 images
     num_show = 10
     images_flow = load_celeb_attr(target_size=target_size, batch_size=num_show, shuffle=shuffle)
-    example_images = next(images_flow)
-    vae.reconstruct_images(data=example_images[0])
+    batch = next(images_flow)
+    example_images = batch[0]
+    vae.reconstruct_images(data=example_images)
 
     # plot latent space distributions
     vae.latent_space(images_flow)
@@ -353,8 +354,8 @@ if __name__ == "__main__":
     vae.decoded_images(rand_z_points)
 
     # add vectors (smiling, eyeglasse, attractive, ...) to images
-    vectors_file = path.join(WEIGHTS_DIR, f'{filename}_vectors.pkl')
-    if path.isfile(vectors_file) and not args.overwrite:
+    vectors_file = path.join(VECTORS_DIR, f'{filename}_vectors.pkl')
+    if path.isfile(vectors_file):
         with open(vectors_file, 'rb') as f:
             vectors = pickle.load(f)
     else:
@@ -364,6 +365,8 @@ if __name__ == "__main__":
             vectors[label] = vae.get_vector_from_label(data_flow_label=data_flow_label)
         with open(vectors_file, 'wb') as f:
             pickle.dump(vectors, f)
+
+    vae.add_vector_to_images(example_images[:5], vectors['Eyeglasses'])
 
     plt.show()
 
