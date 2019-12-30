@@ -13,7 +13,10 @@ from keras.utils import plot_model
 from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint 
 
-from app.data import load_celeb
+from app.data import load_celeb, load_celeb_attr
+from app import get_logger
+
+log = get_logger(__name__)
 
 
 class VarAutoencoderModel(object):
@@ -56,13 +59,13 @@ class VarAutoencoderModel(object):
             output_layer = self.decoder()(self.__encoder_output_layer)
 
             def r_loss(x, y):
-                r_loss = K.mean(K.square(x - y), axis = [1,2,3])
+                r_loss = K.mean(K.square(x - y), axis=[1,2,3])
                 return self.__r_loss_factor * r_loss
 
             def kl_loss(x, y):
                 if self.__mu is None or self.__log_var is None:
                     self.__encoder_layers()
-                kl_loss =  -0.5 * K.sum(1 + self.__log_var - K.square(self.__mu) - K.exp(self.__log_var), axis = 1)
+                kl_loss =  -0.5 * K.sum(1 + self.__log_var - K.square(self.__mu) - K.exp(self.__log_var), axis=1)
                 return kl_loss
 
             def loss_func(x, y):
@@ -104,8 +107,8 @@ class VarAutoencoderModel(object):
 
         x = Flatten()(x)
 
-        self.__mu = Dense(self.__z_dim, name='mu')(x)
-        self.__log_var = Dense(self.__z_dim, name='log_var')(x)
+        self.__mu = Dense(self.get_z_dim(), name='mu')(x)
+        self.__log_var = Dense(self.get_z_dim(), name='log_var')(x)
 
         def sampling(args):
             mu, log_var = args
@@ -118,7 +121,7 @@ class VarAutoencoderModel(object):
         if self.__shape_before_flattening is None:
             self.__encoder_layers()
 
-        self.__decoder_input_layer = Input(shape=(self.__z_dim,), name='decoder_input')
+        self.__decoder_input_layer = Input(shape=(self.get_z_dim(),), name='decoder_input')
 
         x = self.__decoder_input_layer
         x = Dense(np.prod(self.__shape_before_flattening))(x)
@@ -150,7 +153,7 @@ class VarAutoencoderModel(object):
                 self.__use_batch_norm,
                 self.__use_dropout,
                 self.__r_loss_factor,
-                self.__z_dim,
+                self.get_z_dim(),
                 ], f)
 
     def load_weights(self, filepath):
@@ -204,11 +207,70 @@ class VarAutoencoderModel(object):
             ax.text(0.5, -0.35, str(i+1), fontsize=10, ha='center', transform=ax.transAxes)
             ax.plot(x, norm.pdf(x))
 
+    def get_vector_from_label(self, target_size, batch_size, shuffle, label):
+        class Current(object):
+            _sum = np.zeros(shape=self.get_z_dim(), dtype='float32')
+            _len = 0
+            _mean = np.zeros(shape=self.get_z_dim(), dtype='float32')
+
+        current_pos = Current()
+        current_neg = Current()
+
+        current_vector = np.zeros(shape=self.get_z_dim(), dtype='float32')
+        current_dist = 0
+
+        log.info(f'label: {label}')
+
+        data_flow_label = load_celeb_attr(target_size=target_size, batch_size=batch_size, shuffle=shuffle, label=label)
+
+        while(current_pos._len < 10000):
+            batch = next(data_flow_label)
+            im = batch[0]
+            attribute = batch[1]
+
+            z_points = self.encoder().predict(np.array(im))
+
+            z_points_pos = z_points[attribute==1]
+            z_points_neg = z_points[attribute==-1]
+
+            if len(z_points_pos) > 0:
+                current_pos._sum += np.sum(z_points_pos, axis=0)
+                current_pos._len += len(z_points_pos)
+                new_mean_pos = current_pos._sum / current_pos._len
+                movement_pos = np.linalg.norm(new_mean_pos-current_pos._mean)
+
+            if len(z_points_neg) > 0: 
+                current_neg._sum += np.sum(z_points_neg, axis=0)
+                current_neg._len += len(z_points_neg)
+                new_mean_neg = current_neg._sum / current_neg._len
+                movement_neg = np.linalg.norm(new_mean_neg-current_neg._mean)
+
+            current_vector = new_mean_pos-new_mean_neg
+            new_dist = np.linalg.norm(current_vector)
+            dist_change = new_dist - current_dist
+
+            log.info(f'images: {current_pos._len:5d}, '
+                         f'pos-move: {movement_pos:.3f}, '
+                         f'neg-move: {movement_neg:.3f}, '
+                         f'dist: {new_dist:.3f}, '
+                         f'delta-dist: {dist_change:.3f}'
+                         )
+
+            current_pos._mean = np.copy(new_mean_pos)
+            current_neg._mean = np.copy(new_mean_neg)
+            current_dist = np.copy(new_dist)
+
+            if np.sum([movement_pos, movement_neg]) < 0.08:
+                current_vector = current_vector / current_dist
+                log.info(f'Found the {label} vector')
+                break
+
+        return current_vector   
+
 
 if __name__ == "__main__":
     import argparse
-    from app.__init__ import PARAMS_DIR, WEIGHTS_DIR
-    from app.data import load_celeb_attr
+    from app import PARAMS_DIR, WEIGHTS_DIR
 
     parser = argparse.ArgumentParser()
 
@@ -269,6 +331,9 @@ if __name__ == "__main__":
     # randomly generate numbers in a reasonable range in the latent space, and construct their corresponding images
     rand_z_points = np.random.normal(size=(num_show, vae.get_z_dim()))
     vae.decoded_images(rand_z_points)
+
+    attractive_vec = vae.get_vector_from_label(target_size=target_size, batch_size=500, shuffle=shuffle, 
+                                               label='Attractive')
 
     plt.show()
 

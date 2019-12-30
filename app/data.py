@@ -53,7 +53,7 @@ def load_celeb(target_size, batch_size, shuffle):
     return data_flow, num_images
 
 
-def load_celeb_attr(target_size, batch_size, shuffle):
+def load_celeb_attr(target_size, batch_size, shuffle, label=None):
     index_col = 'image_id'
     attr_file = path.join(DATA_DIR, 'celeb', 'list_attr_celeba.csv')
 
@@ -61,9 +61,12 @@ def load_celeb_attr(target_size, batch_size, shuffle):
     dataframe[index_col] = dataframe.index
 
     image_dir = path.join(DATA_DIR, 'celeb', 'img_align_celeba')
+    data_gen = ImageDataGenerator(rescale=1. / MAX_PIX_VAL)
 
-    data_gen = ImageDataGenerator(rescale=1./255.)
-    data_flow = data_gen.flow_from_dataframe(dataframe=dataframe, directory=image_dir, x_col=index_col,
-                                             target_size=target_size, batch_size=batch_size, shuffle=shuffle, 
-                                             class_mode='input')
-    return data_flow
+    if label is None:
+        return data_gen.flow_from_dataframe(dataframe=dataframe, directory=image_dir, x_col=index_col,
+                                            target_size=target_size, batch_size=batch_size, shuffle=shuffle, 
+                                            class_mode='input')
+    return data_gen.flow_from_dataframe(dataframe=dataframe, directory=image_dir, x_col=index_col, y_col=label,
+                                        target_size=target_size, batch_size=batch_size, shuffle=shuffle, 
+                                        class_mode='raw')

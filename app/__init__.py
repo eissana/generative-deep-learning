@@ -1,8 +1,15 @@
 from os import path, mkdir
+import logging
 
 
 def root_path():
     return path.dirname(__file__)
+
+
+def get_logger(mod_name):
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s [%(asctime)s] %(message)s')
+    log = logging.getLogger(mod_name)
+    return log
 
 
 MODELS_DIR = path.join(f"{root_path()}", "models")
