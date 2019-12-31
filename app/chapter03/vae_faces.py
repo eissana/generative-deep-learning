@@ -11,7 +11,7 @@ from keras.models import Model, load_model
 from keras import backend as K
 from keras.utils import plot_model
 from keras.optimizers import Adam
-from keras.callbacks import ModelCheckpoint 
+from keras.callbacks import ModelCheckpoint, LearningRateScheduler
 
 from app.data import load_celeb, load_celeb_attr
 from app import get_logger
@@ -46,9 +46,18 @@ class VarAutoencoderModel(object):
         self.__log_var = None
 
     def fit(self, data_flow, epochs, shuffle, weights_file, steps_per_epoch):
+        step_size = 1
+        decay_factor = 1
+        initial_lr = self.__learning_rate
+
+        def schedule(epoch):
+            return initial_lr * (decay_factor ** np.floor(epoch / step_size))
+
+        lr_sched = LearningRateScheduler(schedule)
         checkpoint = ModelCheckpoint(weights_file, save_weights_only=True, verbose=1)
+
         return self.model().fit_generator(generator=data_flow, epochs=epochs, steps_per_epoch=steps_per_epoch, 
-                                        shuffle=shuffle, callbacks=[checkpoint])
+                                        shuffle=shuffle, callbacks=[checkpoint, lr_sched])
 
     def model(self):
         if self.__model is None:
